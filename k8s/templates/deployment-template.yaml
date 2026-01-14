@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{SERVICE_NAME}}
+  namespace: feature-{{BRANCH_NAME}}
+  labels:
+    app: {{SERVICE_NAME}}
+    version: {{BRANCH_NAME}}
+    branch: {{BRANCH_NAME}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{SERVICE_NAME}}
+      branch: {{BRANCH_NAME}}
+  template:
+    metadata:
+      labels:
+        app: {{SERVICE_NAME}}
+        version: {{BRANCH_NAME}}
+        branch: {{BRANCH_NAME}}
+    spec:
+      containers:
+      - name: {{SERVICE_NAME}}
+        image: {{IMAGE_NAME}}:{{BRANCH_NAME}}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{PORT}}
+        env:
+        - name: SERVICE_NAME
+          value: "{{SERVICE_NAME}}"
+        - name: PORT
+          value: "{{PORT}}"
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: BRANCH_NAME
+          value: "{{BRANCH_NAME}}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{SERVICE_NAME}}
+  namespace: feature-{{BRANCH_NAME}}
+  labels:
+    app: {{SERVICE_NAME}}
+    branch: {{BRANCH_NAME}}
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{SERVICE_PORT}}
+    targetPort: {{PORT}}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{SERVICE_NAME}}
+    branch: {{BRANCH_NAME}}

@@ -1,0 +1,14 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: feature-{{BRANCH_NAME}}-ingress
+  namespace: feature-{{BRANCH_NAME}}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: feature-{{BRANCH_NAME}}.local
+    http:
+      paths:
+      {{INGRESS_PATHS}}

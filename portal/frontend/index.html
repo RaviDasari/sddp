@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s Deployment Portal - Shared Cluster Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Kubernetes Deployment Portal</h1>
+            <p class="subtitle">Shared Cluster with Smart Isolation</p>
+        </header>
+
+        <div class="main-content">
+            <section class="deploy-section">
+                <h2>Deploy Feature Branch</h2>
+                <form id="deployForm">
+                    <div class="form-group">
+                        <label for="branchName">Branch Name:</label>
+                        <input 
+                            type="text" 
+                            id="branchName" 
+                            name="branchName" 
+                            placeholder="e.g., feature-xyz, bugfix-123"
+                            required
+                            pattern="[a-zA-Z0-9-]+"
+                        >
+                        <small>Alphanumeric characters and hyphens only</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Services to Deploy:</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="services" value="frontend" checked>
+                                <span>Frontend</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="services" value="backend" checked>
+                                <span>Backend</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="services" value="api" checked>
+                                <span>API</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="deployBtn">
+                        Deploy to Feature Namespace
+                    </button>
+                </form>
+
+                <div id="deployStatus" class="status-message"></div>
+            </section>
+
+            <section class="namespaces-section">
+                <div class="section-header">
+                    <h2>Feature Namespaces</h2>
+                    <button class="btn btn-secondary" id="refreshBtn">Refresh</button>
+                </div>
+                <div id="namespacesList" class="namespaces-list">
+                    <p class="loading">Loading namespaces...</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
