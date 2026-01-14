@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: feature-{{BRANCH_NAME}}
+  labels:
+    type: feature-branch
+    branch: {{BRANCH_NAME}}
