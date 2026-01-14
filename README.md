@@ -221,7 +221,8 @@ sddp/
     ├── setup-hosts.sh        # Set up /etc/hosts entries for demo hostnames
     ├── build-images.sh       # Build images for a specific branch
     ├── build-demo-images.sh  # Build all demo branch images upfront
-    └── cleanup.sh
+    ├── stop-all.sh           # Stop all services (feature branches + baseline)
+    └── cleanup.sh            # Complete cleanup (including ingress controller)
 ```
 
 ## Demo Services
@@ -303,9 +304,27 @@ For Rancher Desktop, images built locally should be available. For other cluster
 2. **View pod logs**: `kubectl logs <pod-name> -n <namespace>`
 3. **Check events**: `kubectl get events -n <namespace>`
 
-## Cleanup
+## Stopping Services
 
-To remove all demo resources:
+### Quick Stop (Stop All Services)
+
+To stop all running services (feature branches and baseline) without removing the ingress controller:
+
+```bash
+./scripts/stop-all.sh
+```
+
+This script:
+- Stops all feature branch deployments
+- Stops baseline services
+- Optionally kills port-forward processes
+- Optionally kills portal server processes
+
+**Note**: This is faster than cleanup and keeps the ingress controller running for quick restarts.
+
+### Complete Cleanup
+
+To remove all demo resources including the ingress controller:
 
 ```bash
 ./scripts/cleanup.sh
