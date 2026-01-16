@@ -1,20 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Frontend Service - {{BRANCH_NAME}}</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto; }
         h1 { color: #333; }
+        h2 { color: #555; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; margin-top: 30px; }
         .info { background: #e8f4f8; padding: 15px; border-radius: 4px; margin: 20px 0; }
         .info p { margin: 5px 0; }
         .badge { display: inline-block; padding: 4px 8px; background: #4CAF50; color: white; border-radius: 4px; font-size: 12px; }
         .branch-badge { background: #2196F3; }
+        .service-card { background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 15px 0; }
+        .service-card h3 { margin-top: 0; color: #333; display: flex; align-items: center; gap: 10px; }
+        .service-card .status { font-size: 12px; padding: 3px 8px; border-radius: 12px; }
+        .status-success { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-loading { background: #fff3cd; color: #856404; }
+        .response-box { background: #263238; color: #aed581; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
+        .btn { background: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; margin-bottom: 10px; }
+        .btn:hover { background: #1976D2; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-group { margin: 20px 0; }
+        .endpoint-info { color: #666; font-size: 13px; margin-bottom: 10px; }
+        .highlight { background: #ffeb3b; padding: 2px 6px; border-radius: 3px; color: #333; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Frontend Service</h1>
+        <h1>🚀 Frontend Service</h1>
         <div class="info">
             <p><strong>Namespace:</strong> <span class="badge branch-badge" id="namespace">loading...</span></p>
             <p><strong>Branch:</strong> <span class="badge branch-badge" id="branch">loading...</span></p>
@@ -22,13 +39,126 @@
         </div>
         <p>This is a feature branch deployment running in an isolated namespace.</p>
         <p>The baseline service remains in the default namespace.</p>
+
+        <h2>🔗 Service Connectivity Test</h2>
+        <p>Click the buttons below to call the Backend and API services and verify which branch versions are being accessed:</p>
+        
+        <div class="btn-group">
+            <button class="btn" onclick="callBackend()">📡 Call Backend Service</button>
+            <button class="btn" onclick="callApi()">🔌 Call API Service</button>
+            <button class="btn" onclick="callAllServices()">🔄 Call All Services</button>
+        </div>
+
+        <div class="grid">
+            <div class="service-card">
+                <h3>Backend Service <span class="status status-loading" id="backend-status">Not Called</span></h3>
+                <div class="endpoint-info" id="backend-endpoint">Endpoint: /backend/</div>
+                <div class="response-box" id="backend-response">Click "Call Backend Service" to test connectivity...</div>
+            </div>
+
+            <div class="service-card">
+                <h3>API Service <span class="status status-loading" id="api-status">Not Called</span></h3>
+                <div class="endpoint-info" id="api-endpoint">Endpoint: /api/</div>
+                <div class="response-box" id="api-response">Click "Call API Service" to test connectivity...</div>
+            </div>
+        </div>
+
+        <h2>📊 Branch Verification Summary</h2>
+        <div class="info" id="summary">
+            <p>Call the services above to verify that the frontend is correctly routing to the feature branch versions of Backend and API.</p>
+        </div>
     </div>
+
     <script>
         // Get namespace from environment or URL
-        const namespace = window.location.hostname.split('.')[0] || 'feature-unknown';
-        const branch = namespace.replace('feature-', '') || 'unknown';
+        const hostname = window.location.hostname;
+        const namespace = hostname.split('.')[0] || 'feature-unknown';
+        const branch = namespace.replace('feature-', '').replace('baseline', 'baseline') || 'unknown';
+        const port = window.location.port ? ':' + window.location.port : '';
+        
         document.getElementById('namespace').textContent = namespace;
         document.getElementById('branch').textContent = branch;
+
+        // Update endpoint info
+        document.getElementById('backend-endpoint').textContent = `Endpoint: ${window.location.protocol}//${hostname}${port}/backend/`;
+        document.getElementById('api-endpoint').textContent = `Endpoint: ${window.location.protocol}//${hostname}${port}/api/`;
+
+        async function callService(servicePath, responseElementId, statusElementId) {
+            const statusEl = document.getElementById(statusElementId);
+            const responseEl = document.getElementById(responseElementId);
+            
+            statusEl.textContent = 'Loading...';
+            statusEl.className = 'status status-loading';
+            responseEl.textContent = 'Calling service...';
+
+            try {
+                const url = `${window.location.protocol}//${hostname}${port}/${servicePath}/`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                statusEl.textContent = 'Success';
+                statusEl.className = 'status status-success';
+                responseEl.textContent = JSON.stringify(data, null, 2);
+                
+                return { success: true, data };
+            } catch (error) {
+                statusEl.textContent = 'Error';
+                statusEl.className = 'status status-error';
+                responseEl.textContent = `Error: ${error.message}\n\nThis might happen if:\n- The ${servicePath} service is not deployed\n- The ingress is not configured for /${servicePath}/ path\n- CORS is blocking the request`;
+                
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function callBackend() {
+            await callService('backend', 'backend-response', 'backend-status');
+            updateSummary();
+        }
+
+        async function callApi() {
+            await callService('api', 'api-response', 'api-status');
+            updateSummary();
+        }
+
+        async function callAllServices() {
+            await Promise.all([
+                callService('backend', 'backend-response', 'backend-status'),
+                callService('api', 'api-response', 'api-status')
+            ]);
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const backendStatus = document.getElementById('backend-status').textContent;
+            const apiStatus = document.getElementById('api-status').textContent;
+            const summaryEl = document.getElementById('summary');
+            
+            let summaryHtml = '<p><strong>Results:</strong></p>';
+            
+            try {
+                if (backendStatus === 'Success') {
+                    const backendData = JSON.parse(document.getElementById('backend-response').textContent);
+                    summaryHtml += `<p>✅ <strong>Backend:</strong> Branch <span class="highlight">${backendData.branch}</span> in namespace <span class="highlight">${backendData.namespace}</span></p>`;
+                } else if (backendStatus === 'Error') {
+                    summaryHtml += `<p>❌ <strong>Backend:</strong> Failed to connect</p>`;
+                } else {
+                    summaryHtml += `<p>⏳ <strong>Backend:</strong> Not tested yet</p>`;
+                }
+                
+                if (apiStatus === 'Success') {
+                    const apiData = JSON.parse(document.getElementById('api-response').textContent);
+                    summaryHtml += `<p>✅ <strong>API:</strong> Branch <span class="highlight">${apiData.branch}</span> in namespace <span class="highlight">${apiData.namespace}</span></p>`;
+                } else if (apiStatus === 'Error') {
+                    summaryHtml += `<p>❌ <strong>API:</strong> Failed to connect</p>`;
+                } else {
+                    summaryHtml += `<p>⏳ <strong>API:</strong> Not tested yet</p>`;
+                }
+            } catch (e) {
+                summaryHtml += `<p>Error parsing responses</p>`;
+            }
+            
+            summaryEl.innerHTML = summaryHtml;
+        }
     </script>
 </body>
 </html>

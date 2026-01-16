@@ -107,25 +107,46 @@ class K8sDeployer {
 
   async createIngress(branchName, deployedServices) {
     const namespace = `feature-${branchName}`;
+    const allServiceNames = Object.keys(SERVICES);
     
-    // Build ingress paths with correct YAML indentation
-    const paths = deployedServices.map(serviceName => {
+    // Build ingress paths - deployed services go to feature namespace, others to baseline
+    // We need separate ingress rules for cross-namespace routing
+    const featurePaths = [];
+    const baselinePaths = [];
+    
+    for (const serviceName of allServiceNames) {
       const config = SERVICES[serviceName];
-      return `      - path: ${config.ingressPath}
+      if (deployedServices.includes(serviceName)) {
+        featurePaths.push({
+          name: serviceName,
+          path: config.ingressPath,
+          port: config.servicePort,
+          namespace: namespace
+        });
+      } else {
+        baselinePaths.push({
+          name: serviceName,
+          path: config.ingressPath,
+          port: config.servicePort,
+          namespace: 'default'
+        });
+      }
+    }
+
+    // Generate feature namespace ingress for deployed services
+    const featurePathsYaml = featurePaths.map(p => `      - path: ${p.path}
         pathType: Prefix
         backend:
           service:
-            name: ${serviceName}
+            name: ${p.name}
             port:
-              number: ${config.servicePort}`;
-    }).join('\n');
+              number: ${p.port}`).join('\n');
 
-    // Generate ingress YAML directly to avoid template replacement issues
-    const ingressYaml = `apiVersion: networking.k8s.io/v1
+    const featureIngressYaml = `apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: feature-${branchName}-ingress
-  namespace: feature-${branchName}
+  namespace: ${namespace}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
@@ -134,14 +155,47 @@ spec:
   - host: feature-${branchName}.local
     http:
       paths:
-${paths}
+${featurePathsYaml}
 `;
 
-    const tempFile = `/tmp/ingress-${branchName}.yaml`;
-    await fs.writeFile(tempFile, ingressYaml);
+    const featureTempFile = `/tmp/ingress-${branchName}-feature.yaml`;
+    await fs.writeFile(featureTempFile, featureIngressYaml);
+    await this.executeKubectl(`apply -f ${featureTempFile}`);
+    await fs.unlink(featureTempFile);
 
-    await this.executeKubectl(`apply -f ${tempFile} -n ${namespace}`);
-    await fs.unlink(tempFile);
+    // Generate baseline namespace ingress for fallback services (if any)
+    if (baselinePaths.length > 0) {
+      const baselinePathsYaml = baselinePaths.map(p => `      - path: ${p.path}
+        pathType: Prefix
+        backend:
+          service:
+            name: ${p.name}
+            port:
+              number: ${p.port}`).join('\n');
+
+      const baselineIngressYaml = `apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: feature-${branchName}-baseline-fallback
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: feature-${branchName}.local
+    http:
+      paths:
+${baselinePathsYaml}
+`;
+
+      const baselineTempFile = `/tmp/ingress-${branchName}-baseline.yaml`;
+      await fs.writeFile(baselineTempFile, baselineIngressYaml);
+      await this.executeKubectl(`apply -f ${baselineTempFile}`);
+      await fs.unlink(baselineTempFile);
+      
+      console.log(`Created baseline fallback ingress for: ${baselinePaths.map(p => p.name).join(', ')}`);
+    }
 
     console.log(`Created ingress for ${namespace}`);
   }
@@ -151,22 +205,25 @@ ${paths}
       // Create namespace
       await this.createNamespace(branchName);
 
-      // Deploy each service
+      // Deploy each selected service
       const deployedServices = [];
       for (const service of services) {
         await this.deployService(branchName, service);
         deployedServices.push(service);
       }
 
-      // Create ingress
-      if (deployedServices.length > 0) {
-        await this.createIngress(branchName, deployedServices);
-      }
+      // Determine fallback services
+      const allServiceNames = Object.keys(SERVICES);
+      const fallbackServices = allServiceNames.filter(s => !services.includes(s));
+
+      // Create ingress (handles both deployed and fallback routing)
+      await this.createIngress(branchName, deployedServices);
 
       return {
         success: true,
         namespace: `feature-${branchName}`,
         services: deployedServices,
+        fallbackServices: fallbackServices,
         hostname: `feature-${branchName}.local`
       };
     } catch (error) {
@@ -224,6 +281,18 @@ ${paths}
 
   async deleteNamespace(namespace) {
     try {
+      // Extract branch name from namespace (e.g., "feature-user-auth" -> "user-auth")
+      const branchName = namespace.replace('feature-', '');
+      
+      // Delete the baseline fallback ingress if it exists
+      try {
+        await this.executeKubectl(`delete ingress feature-${branchName}-baseline-fallback -n default --ignore-not-found`);
+        console.log(`Deleted baseline fallback ingress for ${branchName}`);
+      } catch (e) {
+        // Ignore errors - ingress may not exist
+      }
+      
+      // Delete the feature namespace
       await this.executeKubectl(`delete namespace ${namespace}`);
       return { success: true, message: `Namespace ${namespace} deleted` };
     } catch (error) {

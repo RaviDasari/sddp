@@ -117,16 +117,35 @@ function renderNamespaces(namespaces) {
         const branch = ns.branch || ns.name.replace('feature-', '');
         const hostname = `feature-${branch}.local`;
         
+        // Separate deployed services from fallback (ExternalName) services
+        const deployedServices = ns.services?.filter(s => s.type !== 'ExternalName') || [];
+        const fallbackServices = ns.services?.filter(s => s.type === 'ExternalName') || [];
+        
         const deploymentsHtml = ns.deployments && ns.deployments.length > 0
             ? ns.deployments.map(dep => `
                 <div class="deployment-item">
-                    <span class="deployment-name">${dep.name}</span>
+                    <span class="deployment-name">🚀 ${dep.name}</span>
                     <span class="deployment-status ${dep.readyReplicas === dep.replicas ? 'ready' : 'pending'}">
                         ${dep.readyReplicas}/${dep.replicas} ready
                     </span>
                 </div>
             `).join('')
-            : '<p style="color: #888; font-size: 0.9em;">No deployments</p>';
+            : '';
+        
+        const fallbackHtml = fallbackServices.length > 0
+            ? fallbackServices.map(svc => `
+                <div class="deployment-item">
+                    <span class="deployment-name">↩️ ${svc.name}</span>
+                    <span class="deployment-status" style="background: #fff3cd; color: #856404;">
+                        → baseline
+                    </span>
+                </div>
+            `).join('')
+            : '';
+        
+        const servicesHtml = deploymentsHtml || fallbackHtml 
+            ? deploymentsHtml + fallbackHtml
+            : '<p style="color: #888; font-size: 0.9em;">No services</p>';
         
         return `
             <div class="namespace-card">
@@ -142,12 +161,12 @@ function renderNamespaces(namespaces) {
                         <span class="info-value">${hostname}</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Services</span>
-                        <span class="info-value">${ns.services?.length || 0}</span>
+                        <span class="info-label">Deployed</span>
+                        <span class="info-value">${ns.deployments?.length || 0} services</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Deployments</span>
-                        <span class="info-value">${ns.deployments?.length || 0}</span>
+                        <span class="info-label">Fallback</span>
+                        <span class="info-value">${fallbackServices.length} → baseline</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Created</span>
@@ -155,13 +174,13 @@ function renderNamespaces(namespaces) {
                     </div>
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <strong style="font-size: 0.9em; color: #555;">Deployments:</strong>
+                    <strong style="font-size: 0.9em; color: #555;">Services:</strong>
                     <div style="margin-top: 10px;">
-                        ${deploymentsHtml}
+                        ${servicesHtml}
                     </div>
                 </div>
                 <div class="namespace-actions">
-                    <a href="http://${hostname}" target="_blank" class="btn btn-primary" style="text-decoration: none; display: inline-block;">
+                    <a href="http://${hostname}:8080" target="_blank" class="btn btn-primary" style="text-decoration: none; display: inline-block;">
                         🌐 Open Service
                     </a>
                     <button class="btn btn-danger" onclick="deleteNamespace('${ns.name}')">

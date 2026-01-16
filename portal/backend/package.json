@@ -1,7 +1,7 @@
 {
   "name": "k8s-deployment-portal-backend",
   "version": "1.0.0",
-  "description": "Backend API for Kubernetes deployment portal",
+  "description": "Backend API for Scalable Development Deployment Portal",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

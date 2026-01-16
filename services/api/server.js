@@ -5,6 +5,18 @@ const namespace = process.env.NAMESPACE || 'default';
 const branchName = process.env.BRANCH_NAME || 'baseline';
 
 const server = http.createServer((req, res) => {
+  // Add CORS headers for browser requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
     service: serviceName,
